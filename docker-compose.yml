@@ -1,0 +1,39 @@
+version: '3.8'
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2019-latest
+    container_name: sqlserver-container
+    environment:
+      - SA_PASSWORD=YourStrong!Pass
+      - ACCEPT_EULA=Y
+    ports:
+      - "1433:1433"
+    networks:
+      - bankapp-network
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq-container
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    networks:
+      - bankapp-network
+
+  bankapp-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: bankapp-api-container
+    depends_on:
+      - sqlserver
+      - rabbitmq
+    networks:
+      - bankapp-network
+    environment:
+      - RabbitMQ__HostName=rabbitmq
+      - ConnectionStrings__DefaultConnection=Server=sqlserver;Database=BankDb;User ID=sa;Password=YourStrong!Pass;TrustServerCertificate=True;Encrypt=False;
+
+networks:
+  bankapp-network:
+    driver: bridge

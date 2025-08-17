@@ -1,0 +1,5 @@
+C:\Users\Eren\source\repos\BankApp\BankApp.Application\obj\Debug\net8.0\BankApp.Application.csproj.AssemblyReference.cache
+C:\Users\Eren\source\repos\BankApp\BankApp.Application\obj\Debug\net8.0\BankApp.Application.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\Eren\source\repos\BankApp\BankApp.Application\obj\Debug\net8.0\BankApp.Application.AssemblyInfoInputs.cache
+C:\Users\Eren\source\repos\BankApp\BankApp.Application\obj\Debug\net8.0\BankApp.Application.AssemblyInfo.cs
+C:\Users\Eren\source\repos\BankApp\BankApp.Application\obj\Debug\net8.0\BankApp.Application.csproj.CoreCompileInputs.cache

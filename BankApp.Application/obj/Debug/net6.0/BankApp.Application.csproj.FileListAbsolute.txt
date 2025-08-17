@@ -1,0 +1,17 @@
+C:\Users\Eren\source\repos\BankApp\BankApp.Application\bin\Debug\net6.0\BankApp.Application.deps.json
+C:\Users\Eren\source\repos\BankApp\BankApp.Application\bin\Debug\net6.0\BankApp.Application.dll
+C:\Users\Eren\source\repos\BankApp\BankApp.Application\bin\Debug\net6.0\BankApp.Application.pdb
+C:\Users\Eren\source\repos\BankApp\BankApp.Application\bin\Debug\net6.0\BankApp.Infrastructure.dll
+C:\Users\Eren\source\repos\BankApp\BankApp.Application\bin\Debug\net6.0\BankAppDomain.dll
+C:\Users\Eren\source\repos\BankApp\BankApp.Application\bin\Debug\net6.0\BankApp.Infrastructure.pdb
+C:\Users\Eren\source\repos\BankApp\BankApp.Application\bin\Debug\net6.0\BankAppDomain.pdb
+C:\Users\Eren\source\repos\BankApp\BankApp.Application\obj\Debug\net6.0\BankApp.Application.csproj.AssemblyReference.cache
+C:\Users\Eren\source\repos\BankApp\BankApp.Application\obj\Debug\net6.0\BankApp.Application.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\Eren\source\repos\BankApp\BankApp.Application\obj\Debug\net6.0\BankApp.Application.AssemblyInfoInputs.cache
+C:\Users\Eren\source\repos\BankApp\BankApp.Application\obj\Debug\net6.0\BankApp.Application.AssemblyInfo.cs
+C:\Users\Eren\source\repos\BankApp\BankApp.Application\obj\Debug\net6.0\BankApp.Application.csproj.CoreCompileInputs.cache
+C:\Users\Eren\source\repos\BankApp\BankApp.Application\obj\Debug\net6.0\BankApp..232A1883.Up2Date
+C:\Users\Eren\source\repos\BankApp\BankApp.Application\obj\Debug\net6.0\BankApp.Application.dll
+C:\Users\Eren\source\repos\BankApp\BankApp.Application\obj\Debug\net6.0\refint\BankApp.Application.dll
+C:\Users\Eren\source\repos\BankApp\BankApp.Application\obj\Debug\net6.0\BankApp.Application.pdb
+C:\Users\Eren\source\repos\BankApp\BankApp.Application\obj\Debug\net6.0\ref\BankApp.Application.dll
