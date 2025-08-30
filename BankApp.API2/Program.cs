@@ -4,53 +4,55 @@ using BankApp.Application.Services;
 using BankApp.Infrastructure.Data;
 using BankApp.Infrastructure.Repositories;
 using BankAppDomain.Managers;
-using BankAppDomain.Repositories;
-using Microsoft.Data.SqlClient;
-using Microsoft.EntityFrameworkCore;
-using System.Text.Json.Serialization;
-using Nest;
-using Hangfire;
-using FluentValidation.AspNetCore;
-using RabbitMQ.Client;
-using BankApp.Infrastructure.Messaging;
-using BankApp.Application.Events;
-using BankApp.Application.EventHandlers;
-using BankApp.Workers.Consumers;
-using BankAppDomain.Constants;
-using BankApp.Application.Validations.Transaction;
-using BankApp.Application.Etos;
-using BankApp.Workers.Workers;
-using BankAppDomain.Models.RabbitModels;
-using BankAppDomain.Events;
-using Microsoft.Extensions.Logging;
+using System;
 using System.Data;
+using System.Text.Json.Serialization;
+using BankApp.Application.Etos;
+using BankApp.Application.EventHandlers;
+using BankApp.Application.Events;
+using BankApp.Application.Validations.Transaction;
+using BankAppDomain.Constants;
+using BankAppDomain.Events;
+using BankAppDomain.Models.RabbitModels;
+using BankAppDomain.Repositories;
+using BankApp.Infrastructure.Messaging;
+using BankApp.Workers.Consumers;
+using BankApp.Workers.Workers;
+using Dapper;
+using FluentValidation.AspNetCore;
+using Hangfire;
+using Hangfire.PostgreSql;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using Nest;
+using Npgsql;
+using RabbitMQ.Client;
 
-// ---------------- BUILDER ----------------
 var builder = WebApplication.CreateBuilder(args);
 
 // Logging
 builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
 
-// ---------------- DATABASE ----------------
+// DATABASE (PostgreSQL)
+var pgConn = builder.Configuration.GetConnectionString("DefaultConnection")!;
 builder.Services.AddDbContext<BankDbContext>(options =>
-    options.UseSqlServer(
-        builder.Configuration.GetConnectionString("DefaultConnection"),
+    options.UseNpgsql(
+        pgConn,
         sqlOptions =>
         {
             sqlOptions.MigrationsAssembly("BankApp.Infrastructure");
             sqlOptions.EnableRetryOnFailure();
         }));
 
-// ---------------- REDIS ----------------
+// REDIS
 builder.Services.AddStackExchangeRedisCache(options =>
-    options.Configuration = builder.Configuration.GetConnectionString("Redis"));
+    options.Configuration = builder.Configuration.GetConnectionString("Redis")!);
 
-// ---------------- RABBITMQ ----------------
+// RABBITMQ
 builder.Services.AddSingleton(sp =>
 {
-    var cfg = builder.Configuration.GetSection("RabbitMQ").Get<RabbitSettings>();
-    Console.WriteLine($"[RabbitMQ] {cfg.HostName}:{cfg.Port} vhost={cfg.VirtualHost}");
+    var cfg = builder.Configuration.GetSection("RabbitMQ").Get<RabbitSettings>()!;
     return new ConnectionFactory
     {
         HostName = cfg.HostName!,
@@ -75,39 +77,38 @@ builder.Services.AddScoped(typeof(IEventPublisher<>), typeof(RabbitMqEventPublis
 builder.Services.AddScoped<IOutboxRepository, OutboxRepository>();
 builder.Services.AddHostedService<OutboxMessageDispatcher>();
 
-// ---------------- EVENT HANDLERS ----------------
+// EVENT HANDLERS
 builder.Services.AddScoped<IEventHandler<CustomerCreateEto>, CustomerCreateEventHandler>();
 builder.Services.AddScoped<IEventHandler<CustomerDeleteEto>, CustomerDeleteEventHandler>();
 builder.Services.AddScoped<IEventHandler<AccountCreateEto>, AccountCreateEventHandler>();
 builder.Services.AddScoped<IEventHandler<CardCreateEto>, CardCreateEventHandler>();
 builder.Services.AddScoped<AccountDeleteEventHandler>();
 
-// ---------------- ELASTICSEARCH ----------------
+// ELASTICSEARCH
 var elasticUri = new Uri(builder.Configuration["ElasticsearchSettings:Uri"]!);
 builder.Services.AddSingleton<IElasticClient>(
     new ElasticClient(new ConnectionSettings(elasticUri)
         .DefaultIndex(ElasticSearchConstants.DefaultIndex)));
 builder.Services.AddScoped<IElasticSearchService, ElasticSearchService>();
 
-// ---------------- EVENT CONSUMERS ----------------
+// EVENT CONSUMERS
 builder.Services.AddHostedService<CustomerCreatedEventConsumer>();
 builder.Services.AddHostedService<CustomerDeletedEventConsumer>();
 builder.Services.AddHostedService<AccountCreatedEventConsumer>();
 builder.Services.AddHostedService<CardCreateEventConsumer>();
 builder.Services.AddHostedService<AccountDeleteEventConsumer>();
 
-// ---------------- AUTOMAPPER ----------------
+// AUTOMAPPER
 builder.Services.AddAutoMapper(typeof(MappingProfile));
 
-// ---------------- HANGFIRE ----------------
-builder.Services.AddHangfire(cfg =>
-    cfg.UseSqlServerStorage(builder.Configuration.GetConnectionString("DefaultConnection")!));
+// HANGFIRE (PostgreSQL storage)
+builder.Services.AddHangfire(cfg => cfg.UsePostgreSqlStorage(pgConn));
 builder.Services.AddHangfireServer();
 
-// ---------------- REPOSITORIES ----------------
+// REPOSITORIES
 builder.Services.AddScoped(typeof(BankAppDomain.IRepository<>), typeof(EfCoreRepository<>));
 builder.Services.AddScoped<IDbConnection>(sp =>
-    new SqlConnection(sp.GetRequiredService<IConfiguration>().GetConnectionString("DefaultConnection")!));
+    new NpgsqlConnection(sp.GetRequiredService<IConfiguration>().GetConnectionString("DefaultConnection")!));
 
 builder.Services.AddScoped<ICustomerRepository, CustomerRepository>();
 builder.Services.AddScoped<IAccountRepository, AccountRepository>();
@@ -120,7 +121,7 @@ builder.Services.AddScoped<IPersonalFinancialInfoViewRepository, PersonalFinanci
 builder.Services.AddScoped<ICustomerAccountCardViewRepository, CustomerAccountCardViewRepository>();
 builder.Services.AddScoped<ICardAccountTransactionViewRepository, CardAccountTransactionViewRepository>();
 
-// ---------------- DOMAIN SERVICES ----------------
+// DOMAIN SERVICES
 builder.Services.AddScoped<ICustomerService, CustomerService>();
 builder.Services.AddScoped<IAccountService, AccountService>();
 builder.Services.AddScoped<IAccountTypeService, AccountTypeService>();
@@ -132,23 +133,23 @@ builder.Services.AddScoped<IPersonalFinancialInfoViewService, PersonalFinancialI
 builder.Services.AddScoped<ICustomerAccountCardViewService, CustomerAccountCardViewService>();
 builder.Services.AddScoped<ICardAccountTransactionViewService, CardAccountTransactionViewService>();
 
-// ---------------- MANAGERS ----------------
+// MANAGERS
 builder.Services.AddScoped<AccountManager>();
 builder.Services.AddScoped<CustomerManager>();
 builder.Services.AddScoped<TransactionManager>();
 
-// ---------------- WORKERS ----------------
+// WORKERS
 builder.Services.AddHostedService<EmailSenderWorker>();
 builder.Services.AddHostedService<TransactionWorker>();
 builder.Services.AddHostedService<CardActivityWorker>();
 
-// ---------------- CACHE ----------------
+// CACHE
 builder.Services.AddScoped<ICacheService, RedisCacheService>();
 
-// ---------------- HTTP CONTEXT ----------------
+// HTTP CONTEXT
 builder.Services.AddHttpContextAccessor();
 
-// ---------------- CONTROLLERS ----------------
+// CONTROLLERS
 builder.Services.AddControllers()
     .AddJsonOptions(o =>
     {
@@ -158,17 +159,34 @@ builder.Services.AddControllers()
     .AddFluentValidation(fv =>
         fv.RegisterValidatorsFromAssemblyContaining<TransactionUpdateDtoValidator>());
 
-// ---------------- SWAGGER ----------------
+// SWAGGER
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
     c.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo { Title = "BankApp API", Version = "v1" }));
 
-// ---------------- CORS ----------------
+// CORS
 builder.Services.AddCors(o =>
     o.AddPolicy("AllowAll", p => p.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader()));
 
-// ---------------- APP ----------------
+// APP
 var app = builder.Build();
+
+// Ensure database exists & apply migrations
+using (var scope = app.Services.CreateScope())
+{
+    var services = scope.ServiceProvider;
+    try
+    {
+        var db = services.GetRequiredService<BankDbContext>();
+        db.Database.Migrate();
+    }
+    catch (Exception ex)
+    {
+        var logger = services.GetRequiredService<ILogger<Program>>();
+        logger.LogError(ex, "Database migration failed.");
+        throw;
+    }
+}
 
 app.UseHangfireDashboard();
 
