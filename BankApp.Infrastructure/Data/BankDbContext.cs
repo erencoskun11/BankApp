@@ -11,20 +11,19 @@ namespace BankApp.Infrastructure.Data
             : base(options)
         {
         }
-        //view classlari
-        public DbSet<PersonalFinancialInfoView> PersonalFinancialInfoViews { get; set; }
 
-        public DbSet<CustomerAccountCardView> CustomerAccountCardView { get; set; }
+        // view classları
+        public DbSet<PersonalFinancialInfoView> PersonalFinancialInfoViews { get; set; } = null!;
+        public DbSet<CustomerAccountCardView> CustomerAccountCardView { get; set; } = null!;
 
-        public DbSet<Customer> Customers { get; set; }
-        public DbSet<Account> Accounts { get; set; }
-        public DbSet<Card> Cards { get; set; }
-        public DbSet<Transaction> Transactions { get; set; }
-        public DbSet<AccountType> AccountTypes { get; set; }
-        public DbSet<CardType> CardTypes { get; set; }
-        public DbSet<TransactionType> TransactionTypes { get; set; }
-        public DbSet<OutboxMessage> OutboxMessages { get; set; }
-
+        public DbSet<Customer> Customers { get; set; } = null!;
+        public DbSet<Account> Accounts { get; set; } = null!;
+        public DbSet<Card> Cards { get; set; } = null!;
+        public DbSet<Transaction> Transactions { get; set; } = null!;
+        public DbSet<AccountType> AccountTypes { get; set; } = null!;
+        public DbSet<CardType> CardTypes { get; set; } = null!;
+        public DbSet<TransactionType> TransactionTypes { get; set; } = null!;
+        public DbSet<OutboxMessage> OutboxMessages { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -51,7 +50,7 @@ namespace BankApp.Infrastructure.Data
                 .HasForeignKey(a => a.CustomerId);
 
             modelBuilder.Entity<Account>()
-                .HasMany(x=>x.Cards)
+                .HasMany(x => x.Cards)
                 .WithOne(c => c.Account)
                 .HasForeignKey(c => c.AccountId);
 
@@ -79,16 +78,12 @@ namespace BankApp.Infrastructure.Data
                 .HasForeignKey(c => c.CardTypeId);
 
             modelBuilder.Entity<Customer>()
-    .Property(c => c.RiskLimit)
-    .HasPrecision(18, 2); // örnek
+                .Property(c => c.RiskLimit)
+                .HasPrecision(18, 2);
 
             modelBuilder.Entity<Transaction>()
                 .Property(t => t.Amount)
                 .HasPrecision(18, 2);
-
-
-
-
 
             modelBuilder.Entity<CardType>().HasData(
                 new CardType { Id = 1, Name = "Bank Card" },
@@ -107,6 +102,7 @@ namespace BankApp.Infrastructure.Data
                 entity.Property(e => e.CardId).HasColumnName("CardId");
                 entity.Property(e => e.CardNumber).HasColumnName("CardNumber");
             });
+
             modelBuilder.Entity<PersonalFinancialInfoView>(entity =>
             {
                 entity.HasNoKey();
