@@ -13,9 +13,9 @@ namespace BankApp.Infrastructure.Messaging
         private readonly IConnection _connection;
         private readonly IModel _channel;
 
-        public RabbitMqEventPublisher(IConnection connection)
+        public RabbitMqEventPublisher(IConnectionProvider connectionProvider)
         {
-            _connection = connection;
+            _connection = connectionProvider.GetConnection();
             _channel = _connection.CreateModel();
         }
 
@@ -24,7 +24,7 @@ namespace BankApp.Infrastructure.Messaging
             var message = JsonSerializer.Serialize(@event);
             var body = Encoding.UTF8.GetBytes(message);
 
-            // Kuyruğu yoksa oluşturur, varsa aynen bırakır
+            // Kuyruğu yoksa oluşturur, varsa dokunmaz
             _channel.QueueDeclare(
                 queue: queueName,
                 durable: true,
@@ -49,7 +49,6 @@ namespace BankApp.Infrastructure.Messaging
             {
                 PublishAsync(e, queueName);
             }
-
             return Task.CompletedTask;
         }
     }

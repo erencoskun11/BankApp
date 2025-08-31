@@ -5,5 +5,5 @@ public interface IConnectionProvider
     /// <summary>
     /// Açık ve kullanılabilir bir IConnection döndürür. Gerekirse bağlantı oluşturur.
     /// </summary>
-    IConnection GetConnection();
+    RabbitMQ.Client.IConnection GetConnection();
 }

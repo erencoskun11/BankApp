@@ -8,15 +8,19 @@ public class ConnectionProvider : IConnectionProvider, IDisposable
     private IConnection? _connection;
     private readonly object _lock = new();
 
+
     public ConnectionProvider(ConnectionFactory factory) => _factory = factory;
+
 
     public IConnection GetConnection()
     {
         if (_connection != null && _connection.IsOpen) return _connection;
 
+
         lock (_lock)
         {
             if (_connection != null && _connection.IsOpen) return _connection;
+
 
             int tries = 0;
             while (tries < 5)
@@ -35,9 +39,11 @@ public class ConnectionProvider : IConnectionProvider, IDisposable
                 }
             }
 
+
             throw new Exception("RabbitMQ bağlantısı kurulamadı (ConnectionProvider).");
         }
     }
+
 
     public void Dispose()
     {
