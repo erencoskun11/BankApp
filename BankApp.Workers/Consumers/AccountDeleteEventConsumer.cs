@@ -1,22 +1,14 @@
 ﻿using BankApp.Application.Etos;
 using BankApp.Application.EventHandlers;
-using Chinchilla.Logging;
-using Elasticsearch.Net;
-using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Text;
 using System.Text.Json;
-using System.Threading.Tasks;
 using System.Threading;
 using System.Threading.Tasks;
-using RabbitConnection = RabbitMQ.Client.IConnection;
 
 namespace BankApp.Workers.Consumers
 {
@@ -24,25 +16,29 @@ namespace BankApp.Workers.Consumers
     {
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly ILogger<AccountDeleteEventConsumer> _logger;
-        private readonly RabbitConnection _connection;
-        private RabbitMQ.Client.IModel _channel;
+        private readonly IConnectionProvider _connectionProvider;
+
+        private IConnection? _connection;
+        private IModel? _channel;
+
         private const string QueueName = "account-delete-queue";
 
-        public AccountDeleteEventConsumer(IServiceScopeFactory scopeFactory, ILogger<AccountDeleteEventConsumer> logger, RabbitConnection connection)
-
+        public AccountDeleteEventConsumer(
+            IServiceScopeFactory scopeFactory,
+            ILogger<AccountDeleteEventConsumer> logger,
+            IConnectionProvider connectionProvider)
         {
             _scopeFactory = scopeFactory;
             _logger = logger;
-
-            _connection = connection;
-
-            _channel = _connection.CreateModel();
-
-            _channel.QueueDeclare(queue: QueueName, durable: false, exclusive: false, autoDelete: false, arguments: null);
+            _connectionProvider = connectionProvider;
         }
 
         protected override Task ExecuteAsync(CancellationToken stoppingToken)
         {
+            _connection = _connectionProvider.GetConnection();
+            _channel = _connection.CreateModel();
+
+            _channel.QueueDeclare(queue: QueueName, durable: true, exclusive: false, autoDelete: false, arguments: null);
 
             var consumer = new AsyncEventingBasicConsumer(_channel);
             consumer.Received += async (model, ea) =>
@@ -50,7 +46,7 @@ namespace BankApp.Workers.Consumers
                 var body = ea.Body.ToArray();
                 var message = Encoding.UTF8.GetString(body);
 
-                _logger.LogInformation($"Received message from queue {QueueName}");
+                _logger.LogInformation($"[AccountDeleteConsumer] Received message: {message}");
 
                 var accountDeleteEvent = JsonSerializer.Deserialize<AccountDeleteEto>(message);
 
@@ -65,20 +61,17 @@ namespace BankApp.Workers.Consumers
             _channel.BasicConsume(queue: QueueName, autoAck: false, consumer: consumer);
 
             return Task.CompletedTask;
-
-
         }
+
         public override void Dispose()
         {
-            _channel?.Close();
-            _connection?.Close();
+            try
+            {
+                _channel?.Close();
+                _connection?.Close();
+            }
+            catch { }
             base.Dispose();
         }
-
-
-
-
-
-
     }
 }
