@@ -1,32 +1,34 @@
-﻿using BankApp.Application.Interfaces;
-using BankApp.Application.Mapping;
-using BankApp.Application.Services;
-using BankApp.Infrastructure.Data;
-using BankApp.Infrastructure.Repositories;
-using BankAppDomain.Managers;
-using System;
+﻿using System;
 using System.Data;
 using System.Text.Json.Serialization;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Configuration;
+using Hangfire;
+using Hangfire.PostgreSql;
+using Npgsql;
+using Nest;
+using RabbitMQ.Client;
 using BankApp.Application.Etos;
 using BankApp.Application.EventHandlers;
 using BankApp.Application.Events;
-using BankApp.Application.Validations.Transaction;
-using BankAppDomain.Constants;
-using BankAppDomain.Events;
-using BankAppDomain.Models.RabbitModels;
-using BankAppDomain.Repositories;
+using BankApp.Application.Interfaces;
+using BankApp.Application.Mapping;
+using BankApp.Application.Services;
+using BankApp.Infrastructure.Data;
 using BankApp.Infrastructure.Messaging;
+using BankApp.Infrastructure.Repositories;
 using BankApp.Workers.Consumers;
 using BankApp.Workers.Workers;
-using Dapper;
+using BankAppDomain.Constants;
+using BankAppDomain.Managers;
+using BankAppDomain.Repositories;
 using FluentValidation.AspNetCore;
-using Hangfire;
-using Hangfire.PostgreSql;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
-using Nest;
-using Npgsql;
-using RabbitMQ.Client;
+using BankAppDomain.Events;
+using BankAppDomain.Models.RabbitModels;
+using BankApp.Application.Validations.Transaction;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -37,19 +39,24 @@ builder.Logging.AddConsole();
 // DATABASE (PostgreSQL)
 var pgConn = builder.Configuration.GetConnectionString("DefaultConnection")!;
 builder.Services.AddDbContext<BankDbContext>(options =>
-    options.UseNpgsql(
-        pgConn,
-        sqlOptions =>
-        {
-            sqlOptions.MigrationsAssembly("BankApp.Infrastructure");
-            sqlOptions.EnableRetryOnFailure();
-        }));
+    options.UseNpgsql(pgConn, sqlOptions =>
+    {
+        sqlOptions.MigrationsAssembly("BankApp.Infrastructure");
+        sqlOptions.EnableRetryOnFailure();
+    }));
 
 // REDIS
 builder.Services.AddStackExchangeRedisCache(options =>
-    options.Configuration = builder.Configuration.GetConnectionString("Redis")!);
+{
+    var redisConn = builder.Configuration.GetConnectionString("Redis");
+    if (string.IsNullOrWhiteSpace(redisConn))
+        throw new Exception("Redis connection string is missing in appsettings.json!");
+    options.Configuration = redisConn;
+});
 
+// -------------------------
 // RABBITMQ
+// -------------------------
 builder.Services.AddSingleton(sp =>
 {
     var cfg = builder.Configuration.GetSection("RabbitMQ").Get<RabbitSettings>()!;
@@ -67,13 +74,13 @@ builder.Services.AddSingleton(sp =>
     };
 });
 
-builder.Services.AddSingleton<IConnection>(sp =>
-{
-    var factory = sp.GetRequiredService<ConnectionFactory>();
-    return factory.CreateConnection();
-});
+builder.Services.AddSingleton<IConnectionProvider, ConnectionProvider>();
+builder.Services.AddHostedService<RabbitSetupHostedService>();
 
+// EVENT PUBLISHERS
 builder.Services.AddScoped(typeof(IEventPublisher<>), typeof(RabbitMqEventPublisher<>));
+
+// OUTBOX
 builder.Services.AddScoped<IOutboxRepository, OutboxRepository>();
 builder.Services.AddHostedService<OutboxMessageDispatcher>();
 
@@ -86,9 +93,8 @@ builder.Services.AddScoped<AccountDeleteEventHandler>();
 
 // ELASTICSEARCH
 var elasticUri = new Uri(builder.Configuration["ElasticsearchSettings:Uri"]!);
-builder.Services.AddSingleton<IElasticClient>(
-    new ElasticClient(new ConnectionSettings(elasticUri)
-        .DefaultIndex(ElasticSearchConstants.DefaultIndex)));
+builder.Services.AddSingleton<IElasticClient>(new ElasticClient(new ConnectionSettings(elasticUri)
+    .DefaultIndex(ElasticSearchConstants.DefaultIndex)));
 builder.Services.AddScoped<IElasticSearchService, ElasticSearchService>();
 
 // EVENT CONSUMERS
@@ -101,7 +107,7 @@ builder.Services.AddHostedService<AccountDeleteEventConsumer>();
 // AUTOMAPPER
 builder.Services.AddAutoMapper(typeof(MappingProfile));
 
-// HANGFIRE (PostgreSQL storage)
+// HANGFIRE
 builder.Services.AddHangfire(cfg => cfg.UsePostgreSqlStorage(pgConn));
 builder.Services.AddHangfireServer();
 
@@ -109,11 +115,10 @@ builder.Services.AddHangfireServer();
 builder.Services.AddScoped(typeof(BankAppDomain.IRepository<>), typeof(EfCoreRepository<>));
 builder.Services.AddScoped<IDbConnection>(sp =>
     new NpgsqlConnection(sp.GetRequiredService<IConfiguration>().GetConnectionString("DefaultConnection")!));
-
 builder.Services.AddScoped<ICustomerRepository, CustomerRepository>();
 builder.Services.AddScoped<IAccountRepository, AccountRepository>();
-builder.Services.AddScoped<IAccountTypeRepository, AccountTypeRepository>();
 builder.Services.AddScoped<ICardRepository, CardRepository>();
+builder.Services.AddScoped<IAccountTypeRepository, AccountTypeRepository>();
 builder.Services.AddScoped<ICardTypeRepository, CardTypeRepository>();
 builder.Services.AddScoped<ITransactionRepository, TransactionRepository>();
 builder.Services.AddScoped<ITransactionTypeRepository, TransactionTypeRepository>();
@@ -165,10 +170,9 @@ builder.Services.AddSwaggerGen(c =>
     c.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo { Title = "BankApp API", Version = "v1" }));
 
 // CORS
-builder.Services.AddCors(o =>
-    o.AddPolicy("AllowAll", p => p.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader()));
+builder.Services.AddCors(o => o.AddPolicy("AllowAll", p => p.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader()));
 
-// APP
+// BUILD APP
 var app = builder.Build();
 
 // Ensure database exists & apply migrations
@@ -196,6 +200,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+// Example recurring job
 RecurringJob.AddOrUpdate<ICardService>(
     "CheckAndUpdateCardsJob",
     svc => svc.CheckAndUpdateCardsAsync(),
