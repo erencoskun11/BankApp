@@ -6,7 +6,6 @@ using System.Threading.Tasks;
 using BankApp.Application.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
 using BankApp.Application.DTOs.CardDtos;
-using BankAppDomain.Constants;
 
 namespace BankApp.Workers.Workers
 {
@@ -25,26 +24,23 @@ namespace BankApp.Workers.Workers
         {
             while (!stoppingToken.IsCancellationRequested)
             {
-                _logger.LogInformation("TransactionWorker calisti: {time}", DateTimeOffset.Now);
+                _logger.LogInformation("TransactionWorker çalıştı: {time}", DateTimeOffset.Now);
 
                 using (var scope = _serviceProvider.CreateScope())
                 {
                     var cardService = scope.ServiceProvider.GetRequiredService<ICardService>();
-                    var elasticService = scope.ServiceProvider.GetRequiredService<IElasticSearchService>();
 
-                    var cardsToIndex = await cardService.GetCardsExceptLastWeekAsync();
+                    var cardsToProcess = await cardService.GetCardsExceptLastWeekAsync();
 
-                    foreach (var cardDto in cardsToIndex)
+                    foreach (var cardDto in cardsToProcess)
                     {
-                        await elasticService.IndexAsync<CardGetDto>(cardDto, ElasticSearchConstants.Card.IndexName);
-                        _logger.LogInformation($"Kart {cardDto.Id} elastic'e gönderildi.");
+                        // Elasticsearch kaldırıldı, sadece log bırakıldı
+                        _logger.LogInformation($"Kart {cardDto.Id} işlendi (elastic kaldırıldı).");
                     }
                 }
 
                 await Task.Delay(TimeSpan.FromDays(1), stoppingToken);
             }
         }
-
-
     }
 }
