@@ -16,19 +16,15 @@ namespace BankApp.Application.Services
         private readonly ICustomerRepository _customerRepository;
         private readonly CustomerManager _customerManager;
         private readonly IMapper _mapper;
-        private readonly ICacheService _cacheService;
-        private readonly IElasticSearchService _elasticSearchService;
         private readonly IEventPublisher<CustomerCreateEto> _customerCreateEventPublisher;
         private readonly IEventPublisher<CustomerDeleteEto> _customerDeletedEventPublisher;
 
 
-        public CustomerService(ICustomerRepository customerRepository, IMapper mapper, CustomerManager customerManager,ICacheService cacheService, IElasticSearchService elasticSearchService,IEventPublisher<CustomerCreateEto> customerCreateEventPublisher, IEventPublisher<CustomerDeleteEto> customerDeletedEventPublisher)
+        public CustomerService(ICustomerRepository customerRepository, IMapper mapper, CustomerManager customerManager,IEventPublisher<CustomerCreateEto> customerCreateEventPublisher, IEventPublisher<CustomerDeleteEto> customerDeletedEventPublisher)
         {
             _customerRepository = customerRepository;
             _mapper = mapper;
             _customerManager = customerManager;
-            _cacheService = cacheService;
-            _elasticSearchService = elasticSearchService;
             _customerCreateEventPublisher = customerCreateEventPublisher;
             _customerDeletedEventPublisher = customerDeletedEventPublisher;
 
@@ -36,21 +32,8 @@ namespace BankApp.Application.Services
 
         public async Task<List<CustomerDto>> GetAllCustomersAsync()
         {
-            string cacheKey = "customer_list";
-
-            var cachedCustomers = await _cacheService.GetAsync<List<CustomerDto>>(cacheKey);
-            if (cachedCustomers != null)
-            {
-                return cachedCustomers; 
-            }
-
-            // 2️⃣ Cache yoksa veritabanından çek
             var customers = await _customerRepository.GetAllAsync();
             var customerDtos = _mapper.Map<List<CustomerDto>>(customers);
-
-            // 10 dakika sürecek
-            await _cacheService.SetAsync(cacheKey, customerDtos, TimeSpan.FromMinutes(10));
-
             return customerDtos;
         }
 
@@ -75,7 +58,6 @@ namespace BankApp.Application.Services
 
                 await _customerRepository.AddAsync(customer);
                 await _customerRepository.SaveChangesAsync();
-                await _elasticSearchService.IndexAsync(customer, ElasticSearchConstants.Customer.IndexName);
 
                 var @event = new CustomerCreateEto
                 {
@@ -120,7 +102,6 @@ namespace BankApp.Application.Services
             await _customerRepository.DeleteAsync(id);
             await _customerRepository.SaveChangesAsync();
 
-            await _elasticSearchService.DeleteAsync<Customer>("customers", id.ToString());
 
             var @event = new CustomerDeleteEto
             {
@@ -130,9 +111,6 @@ namespace BankApp.Application.Services
 
             await _customerDeletedEventPublisher.PublishAsync(@event, QueueNameConstant.CustomerDeleted);
 
-            // ✅ Cache'i temizlemeyi unutmusum swaggerda karsialstigim hatanin sebebi buydu
-            await _cacheService.RemoveAsync("customer_list");
-
             return true;
         }
 
@@ -141,13 +119,7 @@ namespace BankApp.Application.Services
             return await _customerRepository.ExistsByNationalIdAsync(nationalId);
         }
 
-        public async Task<List<CustomerDto>>SearchCustomerAsync(string searchText)
-        {
-            var customers = await _elasticSearchService.SearchAsync<Customer>("customers", searchText);
-            var customerDtos = _mapper.Map <List< CustomerDto >> (customers);
-
-            return customerDtos;
-        }
+        
     }
 }
 

@@ -11,7 +11,6 @@ namespace BankApp.Application.Interfaces
         Task<bool> UpdateCustomerAsync(CustomerUpdateDto dto);
         Task<bool> DeleteCustomerAsync(int id);
         Task<bool> ExistsByNationalIdAsync(string nationalId); 
-        Task<List<CustomerDto>> SearchCustomerAsync(string searchText);
 
 
     }
