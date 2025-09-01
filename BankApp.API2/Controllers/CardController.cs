@@ -48,12 +48,14 @@ public class CardController : ControllerBase
     }
 
     [HttpPost]
+    [CacheManagement(typeof(Card), CacheOperationType.Refresh)]
     public async Task<bool> Create([FromBody] CardCreateDto dto)
     {
         return await _cardService.CreateAsync(dto);
        }
 
     [HttpPut("{id}")]
+    [CacheManagement(typeof (Card),CacheOperationType.Refresh)]
     public async Task<bool> Update(int id, [FromBody] CardUpdateDto dto)
     {
         if (id != dto.Id) return false;
@@ -63,6 +65,7 @@ public class CardController : ControllerBase
     }
 
     [HttpDelete("{id}")]
+    [CacheManagement(typeof(Card), CacheOperationType.Refresh)]
     public async Task<bool> Delete(int id)
     {
         return await _cardService.DeleteAsync(id);

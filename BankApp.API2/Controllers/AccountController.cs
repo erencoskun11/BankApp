@@ -24,7 +24,6 @@ namespace BankApp.API.Controllers
 
         [HttpGet]
         [CacheManagement(typeof(Account), CacheOperationType.Read)]
-
         public async Task<List<AccountDto>> GetAll()
         {
             var accounts = await _accountService.GetAllAccountsAsync();
@@ -42,14 +41,14 @@ namespace BankApp.API.Controllers
         }
 
         [HttpPost]
-        [CacheRefresh(typeof(Account))]
+        [CacheManagement(typeof(Account), CacheOperationType.Refresh)]
         public async Task<bool> Create([FromBody] AccountCreateDto accountCreateDto)
         {
             return await _accountService.CreateAccountAsync(accountCreateDto);
         }
 
         [HttpPut("{id}")]
-        [CacheRefresh(typeof(Account))]
+        [CacheManagement(typeof(Account), CacheOperationType.Refresh)]
         public async Task<bool> Update(int id, [FromBody] AccountUpdateDto dto)
         {
             if (id != dto.Id) return false;
@@ -59,7 +58,7 @@ namespace BankApp.API.Controllers
         }
 
         [HttpDelete("{id}")]
-        [CacheRefresh(typeof(Account))]
+        [CacheManagement(typeof(Account), CacheOperationType.Refresh)]
         public async Task<bool> Delete(int id)
         {
            
