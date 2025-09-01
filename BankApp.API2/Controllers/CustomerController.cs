@@ -36,15 +36,7 @@ namespace BankApp.API.Controllers
         }
 
 
-        [HttpGet("search")]
-        [CacheManagement(typeof(Customer), CacheOperationType.Read)]
-        public async Task<List<CustomerDto>> Search([FromQuery] string q)
-        {
-            if (string.IsNullOrWhiteSpace(q))
-                return new List<CustomerDto>();
-            
-            return await _customerService.SearchCustomerAsync(q);
-        }
+       
 
         // Burda data çekme ve mapleme işlemleri servisin içinde olsun.
         [HttpGet("{id}")]
@@ -58,14 +50,14 @@ namespace BankApp.API.Controllers
         }
 
         [HttpPost]
-        [CacheRefresh(typeof(Customer))]
+        [CacheManagement(typeof(Customer), CacheOperationType.Refresh)]
         public async Task<bool> Create([FromBody] CustomerCreateDto dto)
         {
             return await _customerService.CreateCustomerAsync(dto);
         }
 
         [HttpPut("{id}")]
-        [CacheRefresh(typeof(Customer))]
+        [CacheManagement(typeof(Customer), CacheOperationType.Refresh)]
         public async Task<bool> Update(int id, [FromBody] CustomerUpdateDto dto)
         {
             if (id != dto.Id) return false;
@@ -73,14 +65,13 @@ namespace BankApp.API.Controllers
             return await _customerService.UpdateCustomerAsync(dto);
         }
 
-        [CacheRefresh(typeof(Customer))]
+        [CacheManagement(typeof(Customer), CacheOperationType.Refresh)]
         [HttpDelete("{id}")]
         public async Task<bool> Delete(int id)
         {
             return await _customerService.DeleteCustomerAsync(id);
         }
 
-        //yeni detay kismi 
         [HttpGet("transactions")]
         public async Task<IEnumerable<CardAccountTransactionViewDto>> GetCardAccountTransactions()
         {

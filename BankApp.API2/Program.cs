@@ -9,7 +9,6 @@ using Microsoft.Extensions.Configuration;
 using Hangfire;
 using Hangfire.PostgreSql;
 using Npgsql;
-using Nest;
 using RabbitMQ.Client;
 using BankApp.Application.Etos;
 using BankApp.Application.EventHandlers;
@@ -54,16 +53,14 @@ builder.Services.AddStackExchangeRedisCache(options =>
     options.Configuration = redisConn;
 });
 
-// -------------------------
-// RABBITMQ
-// -------------------------
+
 builder.Services.AddSingleton(sp =>
 {
     var cfg = builder.Configuration.GetSection("RabbitMQ").Get<RabbitSettings>()!;
     return new ConnectionFactory
     {
         HostName = cfg.HostName!,
-        Port = cfg.Port,
+        Port = 5673, 
         UserName = cfg.UserName!,
         Password = cfg.Password!,
         VirtualHost = cfg.VirtualHost,
@@ -77,27 +74,16 @@ builder.Services.AddSingleton(sp =>
 builder.Services.AddSingleton<IConnectionProvider, ConnectionProvider>();
 builder.Services.AddHostedService<RabbitSetupHostedService>();
 
-// EVENT PUBLISHERS
 builder.Services.AddScoped(typeof(IEventPublisher<>), typeof(RabbitMqEventPublisher<>));
-
-// OUTBOX
 builder.Services.AddScoped<IOutboxRepository, OutboxRepository>();
 builder.Services.AddHostedService<OutboxMessageDispatcher>();
 
-// EVENT HANDLERS
 builder.Services.AddScoped<IEventHandler<CustomerCreateEto>, CustomerCreateEventHandler>();
 builder.Services.AddScoped<IEventHandler<CustomerDeleteEto>, CustomerDeleteEventHandler>();
 builder.Services.AddScoped<IEventHandler<AccountCreateEto>, AccountCreateEventHandler>();
 builder.Services.AddScoped<IEventHandler<CardCreateEto>, CardCreateEventHandler>();
 builder.Services.AddScoped<AccountDeleteEventHandler>();
 
-// ELASTICSEARCH
-var elasticUri = new Uri(builder.Configuration["ElasticsearchSettings:Uri"]!);
-builder.Services.AddSingleton<IElasticClient>(new ElasticClient(new ConnectionSettings(elasticUri)
-    .DefaultIndex(ElasticSearchConstants.DefaultIndex)));
-builder.Services.AddScoped<IElasticSearchService, ElasticSearchService>();
-
-// EVENT CONSUMERS
 builder.Services.AddHostedService<CustomerCreatedEventConsumer>();
 builder.Services.AddHostedService<CustomerDeletedEventConsumer>();
 builder.Services.AddHostedService<AccountCreatedEventConsumer>();

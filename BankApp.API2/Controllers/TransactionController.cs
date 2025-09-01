@@ -1,4 +1,6 @@
-﻿using BankApp.Application.DTOs.TransactionDtos;
+﻿using BankApp.Application.Attributes;
+using BankApp.Application.DTOs.TransactionDtos;
+using BankApp.Application.Enums;
 using BankApp.Application.Interfaces;
 using BankApp.Domain.Entities;
 using Microsoft.AspNetCore.Mvc;
@@ -17,6 +19,8 @@ namespace BankApp.API2.Controllers
         }
 
         [HttpGet]
+        [CacheManagement(typeof(Transaction), CacheOperationType.Read)]
+
         public async Task<List<TransactionDto>> GetAll()
         {
             return await _transactionService.GetAllAsync();
@@ -29,12 +33,14 @@ namespace BankApp.API2.Controllers
         }
 
         [HttpPost]
+        [CacheManagement(typeof(Transaction), CacheOperationType.Refresh)]
         public async Task<bool> Create([FromBody] TransactionCreateDto dto)
         {
             return await _transactionService.CreateAsync(dto);
         }
 
         [HttpPut("{id}")]
+        [CacheManagement(typeof (Transaction), CacheOperationType.Refresh)]
         public async Task<bool> Update(int id, [FromBody] TransactionUpdateDto dto)
         {
             if (id != dto.Id) return false;
@@ -43,6 +49,7 @@ namespace BankApp.API2.Controllers
         }
 
         [HttpDelete("{id}")]
+        [CacheManagement(typeof(Transaction), CacheOperationType.Refresh)]
         public async Task<bool> Delete(int id)
         {
             return await _transactionService.DeleteAsync(id);

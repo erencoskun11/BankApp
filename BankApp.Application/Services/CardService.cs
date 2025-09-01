@@ -13,28 +13,21 @@ namespace BankApp.Application.Services
     {
         private readonly ICardRepository _cardRepository;
         private readonly IMapper _mapper;
-        private readonly ICacheService _cacheService;
         private readonly IEventPublisher<CardCreateEto> _publisher;
         public CardService(ICardRepository cardRepository, IMapper mapper, ICacheService cacheService,IEventPublisher<CardCreateEto> publisher )
         {
             _cardRepository = cardRepository;
             _mapper = mapper;
-            _cacheService = cacheService;
             _publisher = publisher;
         }
 
         public async Task<List<CardGetDto>> GetAllAsync()
         {
-            var cacheKey = "cards_all";
-            var cachedData = await _cacheService.GetAsync<List<CardGetDto>>(cacheKey);
-
-            if (cachedData != null) {
-                return cachedData;
-            }
+          
+            
             var cards =await _cardRepository.GetAllAsync();
             var result =_mapper.Map<List<CardGetDto>>(cards);
 
-            await _cacheService.SetAsync(cacheKey, result, TimeSpan.FromMinutes(5));
             return result;
         }
 
@@ -50,7 +43,6 @@ namespace BankApp.Application.Services
             await _cardRepository.AddAsync(card);
             await _cardRepository.SaveChangesAsync();
 
-            await _cacheService.RemoveAsync("cards_all"); // <-- ✅ CACHE temizle
 
             // ✅ EVENT: CardCreateEto oluştur
             var eto = new CardCreateEto
@@ -68,13 +60,6 @@ namespace BankApp.Application.Services
             await _publisher.PublishAsync(eto,"CardCreateEto");
             return true;
         }
-        private string MaskCardNumber(string cardNumber)
-        {
-            if (string.IsNullOrEmpty(cardNumber) || cardNumber.Length < 4)
-                return "****";
-            return $"**** **** **** {cardNumber[^4..]}";
-        }
-
         public async Task<bool> UpdateAsync(int id, CardUpdateDto dto)
         {
             var existingCard = await _cardRepository.GetByIdAsync(id);
@@ -112,8 +97,6 @@ namespace BankApp.Application.Services
 
         public async Task<List<CardGetDto>> GetCardsExceptLastWeekAsync()
         {
-            // Bu tür sorgular queryable yapılmalı.
-            // Queryable vs Enumerable farkı araştırılmalı.
             var allCards = await _cardRepository.GetAllAsync();
             var oneWeekAgo = DateTime.Now.AddDays(-7);
 
