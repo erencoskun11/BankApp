@@ -6,7 +6,6 @@ using System.Text;
 using System.Threading.Tasks;
 using BankAppDomain.Constants;
 
-using static BankAppDomain.Constants.ElasticSearchConstants;
 using BankApp.Domain.Entities;
 using Card = BankApp.Domain.Entities.Card;
 using Customer = BankApp.Domain.Entities.Customer;
